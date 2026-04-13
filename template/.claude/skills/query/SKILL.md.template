@@ -1,0 +1,30 @@
+---
+name: query
+description: Answer a question against the wiki. Read {{VAULT_DIR}}/wiki/index.md first, drill into relevant pages, cite with wiki-links, and optionally file the answer back as a synthesis page. Use when the user asks a domain question.
+---
+
+# Query flow
+
+1. **Read `{{VAULT_DIR}}/wiki/index.md` first** to find candidate pages. Always step 1.
+2. **Drill into relevant pages** — entities, concepts, sources. Follow `[[links]]` as needed.
+3. **Synthesize** an answer grounded in wiki content. Cite every claim with `[[page]]` links.
+4. **Offer to file the answer.** If the question required non-trivial synthesis across multiple pages, ask the user: "Should I file this as `{{VAULT_DIR}}/wiki/synthesis/<slug>.md`?" If yes:
+   - Write the page with frontmatter: `type: synthesis`, `question`, `date: YYYY-MM-DD`, `sources: [...]`
+   - Update `{{VAULT_DIR}}/wiki/index.md`
+   - Append `## [YYYY-MM-DD] query | <question>` to `{{VAULT_DIR}}/wiki/log.md`
+   - Commit per policy `{{COMMIT_POLICY}}`.
+5. **Never fabricate.** If the wiki doesn't cover the topic, say so explicitly and suggest what to ingest next.
+
+## Output formats
+Match the question to the shape:
+- **Factual lookup** → short paragraph with citations
+- **Comparison** → markdown table
+- **Decision / tradeoff** → synthesis page
+- **Timeline** → bulleted chronology from `{{VAULT_DIR}}/wiki/log.md` + source dates
+- **Visual** → Marp slide deck (the Marp plugin is pre-installed)
+
+## Rules
+- Wiki pages beat raw sources on the first pass — they are the compiled knowledge.
+- If two pages disagree, surface both claims with citations and let the user resolve.
+- Plain text entity names in the answer should be wrapped as `[[links]]` so the user can click through in Obsidian.
+- For large-scale semantic search across many pages, consider shelling out to `qmd query "<question>"` if the wiki has been indexed.

@@ -1,0 +1,21 @@
+#requires -Version 5
+<#
+.SYNOPSIS
+  Open a wiki page in the running Obsidian app via the obsidian:// URI scheme.
+
+.EXAMPLE
+  powershell -File {{SCRIPTS_DIR}}/obsidian-open.ps1 -Path "wiki/entities/Example.md"
+#>
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$Path,
+
+    [string]$Vault = $(if ($env:OBSIDIAN_VAULT) { $env:OBSIDIAN_VAULT } else { "{{VAULT_NAME}}" })
+)
+
+$encodedPath  = [uri]::EscapeDataString($Path)
+$encodedVault = [uri]::EscapeDataString($Vault)
+$uri = "obsidian://open?vault=$encodedVault&file=$encodedPath"
+
+Write-Host "Opening $uri"
+Start-Process $uri

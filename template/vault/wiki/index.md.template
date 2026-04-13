@@ -1,0 +1,17 @@
+# {{PROJECT_NAME}} Wiki Index
+
+The catalog. Every wiki page is listed here with a one-line summary. Updated on every ingest.
+
+> Empty on day 1. Run `/ingest <path-to-a-source>` to add the first source.
+
+## Entities
+_(none yet)_
+
+## Concepts
+_(none yet)_
+
+## Sources
+_(none yet)_
+
+## Synthesis
+_(none yet)_

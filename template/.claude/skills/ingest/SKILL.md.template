@@ -1,0 +1,35 @@
+---
+name: ingest
+description: Read a raw source, summarize it, update affected wiki pages, refresh index.md, and append to log.md. Use when the user says /ingest, "ingest X", or drops a new document that should be added to the wiki.
+---
+
+# Ingest flow
+
+Paths in this file are **repo-relative** (from project root). When invoking the `obsidian-open` skill, strip the leading `{{VAULT_DIR}}/` — Obsidian URI takes vault-relative paths.
+
+## Sources can live in two places
+- **Under `{{VAULT_DIR}}/raw/sources/`** — for docs you want to keep immutable alongside the wiki.
+- **Elsewhere in the repo** (e.g., `docs/`, `design/`) — point the source page's `raw:` field at the repo-relative path; don't copy.
+
+## Flow
+1. **Read** the source. For PDFs use the `pages` param; for images view directly.
+2. **Discuss** — surface 3-5 key takeaways and ask the user what to emphasize. Skip only in explicit batch mode.
+3. **Write** `{{VAULT_DIR}}/wiki/sources/<slug>.md` per `.claude/rules/wiki-conventions.md` templates:
+   - YAML frontmatter with `type: source`, `title`, `tags`, `ingested: YYYY-MM-DD`, `raw: <path>`
+   - `## Summary` (3-5 paragraphs, neutral)
+   - `## Key facts` bullets
+   - `## Touches` — wiki-link list of affected entity/concept pages and what changed on each
+4. **Touch affected pages.** For each entity/concept mentioned:
+   - If a page exists, update it (new facts, cross-refs, contradiction flags).
+   - If not, create a stub with the correct category per wiki-conventions.
+   - Always add a backlink to the source under the page's `## Sources` section.
+5. **Update `{{VAULT_DIR}}/wiki/index.md`** — list the new source and any new entity/concept pages with a one-line summary.
+6. **Append to `{{VAULT_DIR}}/wiki/log.md`**: `## [YYYY-MM-DD] ingest | <source title>` + 1-2 lines describing what changed.
+7. **Commit** per policy `{{COMMIT_POLICY}}`. If `auto`, commit with message `ingest: <source title>`. If `manual`, stage only.
+
+## Rules
+- Never modify anything under `{{VAULT_DIR}}/raw/`.
+- If a new claim contradicts an existing page, add a `> [!warning] Contradiction` callout with both claims and their citations. Never silently overwrite.
+- Cite every non-trivial fact with `[[sources/<slug>]]`.
+- Use Obsidian wiki-links (`[[entities/Name]]`), not markdown links, for internal navigation.
+- If the source touches more than ~10 wiki pages, consider delegating to the `wiki-maintainer` subagent.

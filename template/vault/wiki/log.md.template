@@ -1,0 +1,6 @@
+# Log
+
+Append-only. Entries start `## [YYYY-MM-DD] <op> | <title>` so `grep "^## \[" {{VAULT_DIR}}/wiki/log.md` parses cleanly.
+
+## [{{DATE}}] init | Wiki scaffolded
+LLM Wiki (Karpathy pattern) scaffolded by create-llm-wiki. Structure: `{{VAULT_DIR}}/raw/` (immutable sources), `{{VAULT_DIR}}/wiki/` (LLM-maintained), `.claude/` (rules, skills, agent). Dataview and Marp plugins pre-installed to `{{VAULT_DIR}}/.obsidian/plugins/`.

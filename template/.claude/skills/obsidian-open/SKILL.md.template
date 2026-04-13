@@ -1,0 +1,45 @@
+---
+name: obsidian-open
+description: Open a wiki page in the running Obsidian app via the obsidian:// URI scheme. Use after creating or updating a page so the user can see it immediately.
+---
+
+# Obsidian open
+
+Invokes a wrapper script that launches `obsidian://open?vault={{VAULT_NAME}}&file=<encoded>`. The vault is registered with Obsidian as `{{VAULT_NAME}}`.
+
+## Path convention
+Obsidian URI takes **vault-relative** paths. From repo root, strip the leading `{{VAULT_DIR}}/`:
+
+| Repo path | Obsidian-relative path |
+| --- | --- |
+| `{{VAULT_DIR}}/wiki/entities/Example.md` | `wiki/entities/Example.md` |
+| `{{VAULT_DIR}}/wiki/sources/example-source.md` | `wiki/sources/example-source.md` |
+| `{{VAULT_DIR}}/raw/sources/example.md` | `raw/sources/example.md` |
+
+## Git Bash / Linux / macOS
+```bash
+./{{SCRIPTS_DIR}}/obsidian-open.sh wiki/entities/Example.md
+```
+
+## PowerShell
+```powershell
+powershell -File {{SCRIPTS_DIR}}/obsidian-open.ps1 -Path "wiki/entities/Example.md"
+```
+
+## When to use
+- Just finished writing or editing a wiki page
+- User said "open X" or "show me X in Obsidian"
+- After an ingest pass, open the new source page for the user to inspect
+
+## When NOT to use
+- Bulk operations — opening many files spams Obsidian's tab bar
+- Read-only query flows — just cite the path
+
+## Setup (one-time, user action)
+1. Launch Obsidian → "Open folder as vault" → select the `{{VAULT_DIR}}/` folder.
+2. Name the vault **{{VAULT_NAME}}** when prompted.
+3. Settings → Community plugins → disable restricted mode → enable `Dataview` and `Marp`.
+
+## Notes
+- Paths are URL-encoded by the wrapper so spaces and unicode work.
+- If Obsidian isn't running, the OS will launch it first, then open the file.

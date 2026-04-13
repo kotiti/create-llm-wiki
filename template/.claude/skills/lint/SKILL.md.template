@@ -1,0 +1,30 @@
+---
+name: lint
+description: Health-check the wiki for contradictions, stale claims, orphan pages, missing cross-refs, and data gaps. Produces a report; does not silently rewrite. Use when the user says /lint or asks for a wiki health check.
+---
+
+# Lint flow
+
+Run these checks across `{{VAULT_DIR}}/wiki/` and produce a report. **Don't rewrite automatically** — propose fixes and let the user approve.
+
+## Checks
+1. **Contradictions** — scan for pages making conflicting claims on the same entity/concept. Flag with page paths + line numbers.
+2. **Stale claims** — pages whose `updated` frontmatter is >30 days old AND where newer sources exist on the same topic.
+3. **Orphans** — pages with zero inbound `[[wiki-links]]`. Grep across `{{VAULT_DIR}}/wiki/`.
+4. **Missing pages** — entity/concept names appearing on ≥3 pages that don't have their own page yet.
+5. **Missing cross-refs** — known entity names appearing as plain text where a `[[link]]` would fit.
+6. **Data gaps** — topics with only 1 source; suggest what to ingest next.
+7. **Log sanity** — verify every recent ingest in `{{VAULT_DIR}}/wiki/log.md` has a matching `{{VAULT_DIR}}/wiki/sources/<slug>.md`.
+8. **Frontmatter sanity** — every page has required fields per `.claude/rules/wiki-conventions.md`.
+
+## Output
+Markdown report grouped by check. For each finding:
+- Page path(s)
+- One-line description
+- Proposed fix (link-only)
+
+End the report with a count per category and a suggested priority order.
+
+## After the report
+- Append `## [YYYY-MM-DD] lint | N findings across M categories` to `{{VAULT_DIR}}/wiki/log.md`.
+- If the user approves fixes, apply them one by one (not as a batch). Commit policy is `{{COMMIT_POLICY}}`. If `auto`, commit each group separately as `lint: <category>`. If `manual`, stage only.

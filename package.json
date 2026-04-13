@@ -1,0 +1,52 @@
+{
+  "name": "create-llm-wiki",
+  "version": "0.1.0",
+  "description": "Scaffold an LLM-maintained Obsidian wiki into any project — Karpathy's LLM Wiki pattern + Claude Code integration.",
+  "type": "module",
+  "bin": {
+    "create-llm-wiki": "./bin/cli.js"
+  },
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "template",
+    "docs",
+    "README.md",
+    "README.ko.md",
+    "README.zh-CN.md",
+    "README.ja.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node bin/cli.js",
+    "test": "node --test test/ || echo 'no tests yet'"
+  },
+  "keywords": [
+    "llm",
+    "wiki",
+    "obsidian",
+    "claude-code",
+    "knowledge-base",
+    "karpathy",
+    "scaffold",
+    "cli",
+    "template"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kotiti/create-llm-wiki.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kotiti/create-llm-wiki/issues"
+  },
+  "homepage": "https://github.com/kotiti/create-llm-wiki#readme"
+}

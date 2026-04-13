@@ -1,0 +1,152 @@
+---
+name: wiki-conventions
+description: Page templates and YAML frontmatter schema for the wiki under {{VAULT_DIR}}/. Referenced by CLAUDE.md and all wiki skills.
+---
+
+# Wiki conventions
+
+Every page in `{{VAULT_DIR}}/wiki/` follows one of four templates: **entity**, **concept**, **source**, or **synthesis**. All four require YAML frontmatter at the top.
+
+## YAML frontmatter
+
+### Entity page (`{{VAULT_DIR}}/wiki/entities/<Name>.md`)
+```yaml
+---
+title: Example
+type: entity
+category: {{ENTITY_EXAMPLE}}          # {{ENTITY_CATEGORIES}}
+tags: [tag-a, tag-b]
+sources: ["[[sources/example-source]]"]
+updated: {{DATE}}
+---
+```
+
+Entities are *things that exist*. Includes libraries, tools, and external systems when worth tracking (use `category: tool`).
+
+### Concept page (`{{VAULT_DIR}}/wiki/concepts/<Name>.md`)
+```yaml
+---
+title: Example Pattern
+type: concept
+category: {{CONCEPT_EXAMPLE}}  # {{CONCEPT_CATEGORIES}}
+tags: [core]
+sources: ["[[sources/example-source]]"]
+updated: {{DATE}}
+---
+```
+
+Concepts are *ideas, systems, patterns*.
+
+### Source page (`{{VAULT_DIR}}/wiki/sources/<slug>.md`)
+```yaml
+---
+title: "Example Source Document"
+type: source
+raw: {{VAULT_DIR}}/raw/sources/example-source.md   # may also point to existing repo paths like docs/
+ingested: {{DATE}}
+tags: [source-type]
+---
+```
+
+**Note**: The `raw:` field can point to either `{{VAULT_DIR}}/raw/sources/<file>` (newly added sources) OR to existing repo locations like `docs/`, `design/`, etc. No need to copy existing docs into `{{VAULT_DIR}}/raw/` just to ingest them.
+
+### Synthesis page (`{{VAULT_DIR}}/wiki/synthesis/<slug>.md`)
+```yaml
+---
+title: "Why X over Y"
+type: synthesis
+question: "Why did we choose X instead of Y?"
+date: {{DATE}}
+sources: ["[[sources/source-a]]", "[[sources/source-b]]"]
+---
+```
+
+## Body structure
+
+### Entity / concept
+```markdown
+# {{title}}
+
+## Summary
+1-3 paragraphs. Plain language, no jargon unless defined.
+
+## Facts
+- Each bullet ends with a citation `[[sources/...]]`.
+
+## Relates to
+- [[entities/...]]
+- [[concepts/...]]
+
+## Sources
+- [[sources/...]]
+```
+
+### Source
+```markdown
+# {{title}}
+
+## Summary
+3-5 paragraphs. What the source actually says, not what we think about it.
+
+## Key facts
+- Bullets.
+
+## Touches
+- [[entities/...]] — what this source adds or changes
+- [[concepts/...]] — what this source adds or changes
+```
+
+### Synthesis
+```markdown
+# {{title}}
+
+## Question
+The exact question being answered.
+
+## Answer
+The synthesis, with citations on every claim.
+
+## Evidence
+- [[sources/...]] — what this source contributes
+```
+
+## Link conventions
+- **Internal**: `[[concepts/Example Pattern]]` — always start with the subfolder.
+- **Images**: `![[raw/assets/<file>]]` — embedded via the vault's pinned attachment folder.
+- **External**: standard markdown `[text](url)`.
+
+## Contradictions
+When a new source conflicts with an existing claim, add a callout to the affected page:
+```markdown
+> [!warning] Contradiction
+> - **Old**: claim A — [[sources/old]]
+> - **New**: claim B — [[sources/new]]
+> Unresolved. Needs human review.
+```
+Do not delete or overwrite the old claim until the user resolves it.
+
+## Slugs
+- Lowercase, kebab-case.
+- Drop file extensions from the slug; keep version suffixes like `-v2`.
+- Example: `docs/design/example-spec-v2.md` → `{{VAULT_DIR}}/wiki/sources/example-spec-v2.md`.
+
+## Tags (suggested starter vocabulary)
+{{TAG_VOCAB}}
+
+Extend this list as the wiki grows. Use sparingly — tags are for broad categorization, not substitutes for cross-references.
+
+## Dataview (optional)
+With the Dataview plugin enabled, auto-generate lists from frontmatter:
+
+~~~dataview
+TABLE category, updated
+FROM "wiki/entities"
+SORT title ASC
+~~~
+
+~~~dataview
+LIST
+FROM "wiki/sources"
+WHERE contains(tags, "draft")
+SORT ingested DESC
+~~~

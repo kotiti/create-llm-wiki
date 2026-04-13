@@ -1,0 +1,55 @@
+# {{PROJECT_NAME}}
+
+LLM-maintained Obsidian-style wiki, scaffolded with [create-llm-wiki](https://github.com/kotiti/create-llm-wiki).
+
+Based on Andrej Karpathy's [LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) — an LLM maintains a persistent, compounding knowledge base instead of re-deriving from raw documents every time.
+
+## Three layers
+- **`{{VAULT_DIR}}/raw/`** — immutable source documents. LLM reads, never writes.
+- **`{{VAULT_DIR}}/wiki/`** — LLM-maintained markdown. Read in Obsidian.
+- **`CLAUDE.md`** — the schema. Tells Claude Code how to operate on the wiki.
+
+## Getting started
+1. Install [Obsidian](https://obsidian.md) and `Open folder as vault` → select `{{VAULT_DIR}}/`. Name it `{{VAULT_NAME}}`.
+2. Settings → Community plugins → disable restricted mode → enable `Dataview` and `Marp`.
+3. Drop a source into `{{VAULT_DIR}}/raw/sources/`.
+4. In Claude Code, run `/ingest {{VAULT_DIR}}/raw/sources/<your-file>`.
+5. Browse results in Obsidian's graph view on the side.
+
+## Daily workflow
+| Command | What it does |
+| --- | --- |
+| `/ingest <path>` | Read a source and file it into the wiki |
+| `/query <question>` | Ask the wiki; cite and optionally synthesize |
+| `/lint` | Health-check: contradictions, orphans, missing cross-refs |
+
+The wiki loads automatically at turn-start (before substantive work) and reflects automatically at turn-end (after substantive work produces domain knowledge). See `CLAUDE.md` and `.claude/rules/wiki-auto-*.md` for details.
+
+## Layout
+```
+{{PROJECT_NAME}}/
+├── CLAUDE.md                   # schema + Claude Code imports
+├── {{VAULT_DIR}}/              # Obsidian vault
+│   ├── .obsidian/
+│   │   └── plugins/{dataview,marp}/
+│   ├── raw/
+│   │   ├── sources/            # immutable inputs
+│   │   └── assets/
+│   └── wiki/
+│       ├── index.md            # catalog
+│       ├── log.md              # changelog
+│       ├── entities/
+│       ├── concepts/
+│       ├── sources/
+│       └── synthesis/
+├── .claude/
+│   ├── agents/wiki-maintainer.md
+│   ├── skills/{ingest,query,lint,obsidian-open}/
+│   └── rules/
+│       ├── wiki-conventions.md
+│       ├── wiki-auto-load.md
+│       └── wiki-auto-reflect.md
+└── {{SCRIPTS_DIR}}/
+    ├── obsidian-open.ps1
+    └── obsidian-open.sh
+```

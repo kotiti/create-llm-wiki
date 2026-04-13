@@ -1,0 +1,48 @@
+---
+name: wiki-auto-load
+description: Turn-start soft rule. Before any substantive task, read relevant wiki pages first and use them as authoritative context. Companion to wiki-auto-reflect. Silent and targeted — not a full index scan.
+---
+
+# Wiki auto-load
+
+The companion to `wiki-auto-reflect.md`. Reflect writes *to* the wiki at turn-end; this loads *from* the wiki at turn-start. Together they make the wiki part of the assistant's active context on every substantive task.
+
+## When to trigger
+At the start of any task that could benefit from prior domain knowledge. Trigger if ANY of:
+- User asks a domain question about an entity, concept, or decision
+- User asks to design, spec, or implement something that may touch existing systems
+- User asks "why" or "how does X work" in project terms
+- User references a page, doc, or entity name
+- User asks for a comparison, tradeoff analysis, or decision
+- A bug investigation may touch design-level invariants documented in the wiki
+
+## When to SKIP
+Do NOT load the wiki for:
+- Pure code mechanics (rename a variable, fix a typo, add a null check)
+- Build / CI / tooling / dependency questions
+- General programming or framework API questions not tied to project domain
+- Simple file reads, listings, grep operations
+- Meta questions about Claude Code, git, npm, etc.
+- When the user is inside an existing skill flow (/ingest, /query, /lint — those have their own read patterns)
+
+## What to do when triggered
+1. **Silently read `{{VAULT_DIR}}/wiki/index.md` first** to see what's been ingested.
+2. **Identify candidate pages** based on the task. The index gives you enough to pick 2-5 targeted pages.
+3. **Read the top 2-5 most relevant pages** — entities, concepts, synthesis.
+4. **Cite what you used.** When your reasoning comes from a wiki page, say so with `[[page]]` references. The user should be able to audit your claims back to the wiki.
+5. **Respect the wiki's authority** on domain matters. If the wiki says X and your instinct says Y, trust the wiki unless you find a clear reason to override (then flag the contradiction for reflect).
+6. **If the wiki is silent**, say so explicitly: "Wiki doesn't cover <X>. Working from first principles." Then proceed — this is a signal that reflect may fire at turn end.
+7. **Do NOT announce the load itself** — it's invisible infrastructure. Only mention the wiki when you cite from it.
+
+## Interaction with reflect
+- Load at turn start → use as context → do the work → reflect at turn end if new knowledge was produced.
+- If load revealed the wiki already covers the question, the answer may be mostly "here's what the wiki says" with a short synthesis. No reflect needed.
+- If load revealed the wiki is stale or contradicts new information, flag the contradiction in the reflect.
+- Load and reflect are independent judgment calls — loading does not force a reflect, and reflecting does not require having loaded.
+
+## Guardrails
+- **Silent load.** No "let me check the wiki first..." messaging. Just do it and cite the result.
+- **Budget-aware.** Don't read 20 pages. Start with the index + 2-5 targeted pages. Expand only if the task demands it.
+- **Don't pre-grep.** Use the index to choose pages, not grep across all of `{{VAULT_DIR}}/wiki/`.
+- **The wiki is not a replacement for code reading.** For implementation questions, still read the relevant code. The wiki tells you *what* the system should do; the code tells you *how* it currently does it.
+- **Prefer wiki pages over raw sources** on first pass. The wiki is the compiled knowledge. Only open `{{VAULT_DIR}}/raw/sources/` if the wiki is silent or you need a direct quote.

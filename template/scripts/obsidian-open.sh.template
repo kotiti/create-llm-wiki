@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Open a wiki page in the running Obsidian app via the obsidian:// URI scheme.
+# Usage: ./{{SCRIPTS_DIR}}/obsidian-open.sh "wiki/entities/Example.md"
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage: $0 <vault-relative-path>" >&2
+  exit 1
+fi
+
+VAULT="${OBSIDIAN_VAULT:-{{VAULT_NAME}}}"
+FILE="$1"
+
+urlencode() {
+  local input="$1"
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$input"
+  elif command -v python >/dev/null 2>&1; then
+    python -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$input"
+  else
+    printf '%s' "$input" | sed 's/ /%20/g'
+  fi
+}
+
+ENCODED_FILE=$(urlencode "$FILE")
+ENCODED_VAULT=$(urlencode "$VAULT")
+URI="obsidian://open?vault=${ENCODED_VAULT}&file=${ENCODED_FILE}"
+
+echo "Opening $URI"
+
+if command -v cmd.exe >/dev/null 2>&1; then
+  cmd.exe /c start "" "$URI"
+elif command -v xdg-open >/dev/null 2>&1; then
+  xdg-open "$URI"
+elif command -v open >/dev/null 2>&1; then
+  open "$URI"
+else
+  echo "No launcher found. URI: $URI" >&2
+  exit 2
+fi

@@ -1,0 +1,30 @@
+# {{PROJECT_NAME}}
+
+LLM-maintained Obsidian wiki. Based on [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f).
+
+## Layout
+- `{{VAULT_DIR}}/` — Obsidian vault. Open this folder in Obsidian as `{{VAULT_NAME}}`.
+  - `{{VAULT_DIR}}/raw/sources/` — immutable source documents
+  - `{{VAULT_DIR}}/raw/assets/` — images & attachments (Obsidian attachment folder, pinned)
+  - `{{VAULT_DIR}}/wiki/{entities,concepts,sources,synthesis}/` — LLM-maintained pages
+  - `{{VAULT_DIR}}/wiki/index.md` — catalog, updated on every ingest
+  - `{{VAULT_DIR}}/wiki/log.md` — append-only changelog, `## [YYYY-MM-DD] <op> | <title>`
+  - `{{VAULT_DIR}}/.obsidian/plugins/{dataview,marp}/` — pre-installed community plugins
+- `.claude/` — Claude Code tooling (stays at project root, not inside vault)
+  - `skills/{ingest,query,lint,obsidian-open}/SKILL.md`
+  - `agents/wiki-maintainer.md` (opus subagent for large passes)
+  - `rules/wiki-conventions.md` (YAML frontmatter + page templates)
+- `{{SCRIPTS_DIR}}/obsidian-open.{ps1,sh}` — launch wiki pages via `obsidian://` URI
+
+## Operations
+- **/ingest `<path>`** — read a source, write a summary at `{{VAULT_DIR}}/wiki/sources/<slug>.md`, touch affected entity/concept pages, update `{{VAULT_DIR}}/wiki/index.md`, append `{{VAULT_DIR}}/wiki/log.md`.
+- **/query `<question>`** — read `{{VAULT_DIR}}/wiki/index.md` first, drill into relevant pages, cite with `[[entities/Name]]` wiki-links. Valuable answers file back to `{{VAULT_DIR}}/wiki/synthesis/<slug>.md`.
+- **/lint** — report contradictions, stale claims, orphan pages, missing cross-refs, data gaps. Report-only; user approves fixes.
+- **Auto-load (turn-start soft rule)** — before substantive work, silently read `{{VAULT_DIR}}/wiki/index.md` + 2-5 relevant pages and cite them when reasoning. Full rule: @.claude/rules/wiki-auto-load.md
+- **Auto-reflect (turn-end soft rule)** — after substantive work that produced domain knowledge, auto-file to the wiki at turn-end. Skips pure code edits. Full rule: @.claude/rules/wiki-auto-reflect.md
+
+## Git
+Commit after every ingest/lint pass. Policy: {{COMMIT_POLICY}}.
+- `ingest: <source title>`
+- `lint: <category>`
+- `wiki(auto): <short>` — for auto-reflect commits
