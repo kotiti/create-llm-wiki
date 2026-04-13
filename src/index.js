@@ -83,6 +83,6 @@ ${msg.helpOptions}:
   -h, --help              ${msg.optHelp}
   -v, --version           ${msg.optVersion}
 
-${msg.helpDocs}: https://github.com/OWNER/create-llm-wiki
+${msg.helpDocs}: https://github.com/kotiti/create-llm-wiki
 `);
 }

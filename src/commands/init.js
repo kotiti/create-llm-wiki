@@ -39,7 +39,7 @@ export async function init(opts) {
     DOMAIN: opts.domain,
     YEAR: String(new Date().getFullYear()),
     DATE: new Date().toISOString().slice(0, 10),
-  });
+  }, opts.retrofit);
 
   await applyDomainPreset(targetDir, opts.domain);
 
@@ -95,7 +95,7 @@ export async function init(opts) {
   console.log(msg.nextStepDocs);
 }
 
-async function copyTemplate(src, dest, vars) {
+async function copyTemplate(src, dest, vars, retrofit = false) {
   await mkdir(dest, { recursive: true });
   const entries = await readdir(src, { withFileTypes: true });
 
@@ -114,8 +114,12 @@ async function copyTemplate(src, dest, vars) {
     const destPath = join(dest, destName);
 
     if (entry.isDirectory()) {
-      await copyTemplate(srcPath, destPath, vars);
+      await copyTemplate(srcPath, destPath, vars, retrofit);
     } else if (entry.isFile()) {
+      if (retrofit && existsSync(destPath)) {
+        console.log(`  skip (exists): ${destPath}`);
+        continue;
+      }
       if (isTemplate) {
         const content = await readFile(srcPath, 'utf8');
         const rendered = renderTemplate(content, vars);
