@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{HOOK_CMD_REFLECT}}",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{HOOK_CMD_LOAD}}",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -47,6 +47,7 @@ export async function run({ values, positionals }) {
     skipObsidianCheck: values['skip-obsidian-check'],
     installObsidian: values['install-obsidian'],
     skipPlugins: values['skip-plugins'],
+    noHooks: values['no-hooks'],
     yes: values.yes,
     lang,
     msg,
@@ -78,6 +79,7 @@ ${msg.helpOptions}:
   --skip-obsidian-check   ${msg.optSkipObsidianCheck}
   --install-obsidian      ${msg.optInstallObsidian}
   --skip-plugins          ${msg.optSkipPlugins}
+  --no-hooks              ${msg.optNoHooks}
   --lang <en|ko|zh-CN|ja> ${msg.optLang}
   -y, --yes               ${msg.optYes}
   -h, --help              ${msg.optHelp}

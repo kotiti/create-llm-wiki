@@ -361,7 +361,31 @@ find .claude -type f | sort
 **修正**: `@.claude/rules/wiki-*.md` を使用する — `@` プレフィックスが Claude Code がファイルをロードする方法
 
 ### 9.2 auto-reflect が過剰 / 不足
-**修正**: プロジェクトごとに SKIP リストをカスタマイズする
+**症状**: 設計の議論が記録されない / コード変更のたびにウィキファイルが作られる
+**原因**: トリガー条件と SKIP リストがプロジェクトに合っていない
+**修正**: プロジェクトごとに SKIP リストをカスタマイズする。*reflect がほとんど発動しない場合* — ソフトルールが LLM の判断で漏れているため、Stop hook 安全網を有効にしてください（§9.2a 参照）。
+
+### 9.2a Hook（安全網）— 静かすぎる、または騒がしすぎる
+**デフォルト動作**: CLI が `.claude/hooks/` に 2 つの Claude Code hook をインストールし、ソフトルールの判断が漏れた際に LLM へリマインダーを注入します。完全な表は README の「Hook（安全網）」セクションを参照。トリガーキーワードは `--domain` プリセットと CLI `--lang` から自動生成されます。
+
+**症状: Stop hook が毎ターン発動する（誤検知）**
+**原因**: intent regex が広すぎる、またはプロジェクトが常にドメインコンテンツを扱っている。
+**修正**: `.claude/hooks/wiki-reflect-check.{ps1,py}` 上部付近の `intent_regex` からノイズキーワードを削除する。hook は*意図キーワード*または*`docs/`/`design/`/`{vault}/raw/sources/` ファイルの読み取り*のどちらかが必要なため、キーワードを絞ると「LLM が実際に設計ドキュメントを開いたときのみ」に限定できます。
+
+**症状: Stop hook が全く発動しない**
+**原因**: intent regex が狭すぎる、またはプロジェクトの設計ドキュメントがデフォルトで想定している `docs/` / `design/` / `{vault}/raw/sources/` 以外のパスにある。
+**修正**: スクリプト上部付近の `source_needles` 配列にプロジェクトのソースドキュメントパスを追加し、`intent_regex` にドメインキーワードを追加する。
+
+**症状: Hook を完全に無効にしたい**
+**修正**: greenfield なら `--no-hooks` で再実行、または `.claude/settings.json` から `Stop` と `UserPromptSubmit` のエントリを削除する。ソフトルールは引き続き適用されます。
+
+**症状: Linux/macOS で hook が動かない**
+**原因**: CLI が Python hook（Unix バリアント）をインストールしたが、Python 3.7+ が PATH にない。
+**修正**: Python 3 をインストールする（`brew install python` またはディストリビューションのパッケージマネージャ）、または PowerShell Core（`pwsh`）を使用している場合は `.claude/settings.json` の `command` フィールドを `.ps1` ファイルに変更する。
+
+**症状: Windows で hook が動かない**
+**原因**: PowerShell の実行ポリシーがスクリプトをブロックしている、または Claude Code が新しい `settings.json` を読み込んでいない。
+**修正**: デフォルトのコマンドは `-ExecutionPolicy Bypass` を使用するため、ポリシーは問題にならないはず。hook が発動しない場合は Claude Code を再起動してください（settings.json はセッション開始時に読み込まれ、ライブ反映はされません）。
 
 ### 9.3 Obsidian のパスが一致しない
 **修正**: `--vault-name` と Obsidian で開くときに選ぶ名前を一致させる

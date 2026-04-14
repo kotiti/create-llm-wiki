@@ -363,7 +363,29 @@ find .claude -type f | sort
 ### 9.2 auto-reflect 过度或不足
 **症状**: 设计讨论没有记录 / 每次代码更改都创建 wiki 文件
 **原因**: 触发条件和 SKIP 列表不匹配项目
-**修复**: 按项目自定义 SKIP 列表
+**修复**: 按项目自定义 SKIP 列表。*如果 reflect 几乎从不触发*——这说明软规则被 LLM 的判断遗漏，请启用 Stop hook 安全网（见 §9.2a）。
+
+### 9.2a Hook（安全网）— 过于安静或过于吵闹
+**默认行为**: CLI 在 `.claude/hooks/` 下安装两个 Claude Code hook，当软规则判断被遗漏时向 LLM 注入提醒。完整说明见 README 的"Hook（安全网）"部分。触发关键词由 `--domain` 预设和 CLI `--lang` 自动生成。
+
+**症状: Stop hook 每次回合都触发（误报）**
+**原因**: intent regex 太宽泛，或项目本身始终在处理领域内容。
+**修复**: 编辑 `.claude/hooks/wiki-reflect-check.{ps1,py}` 顶部附近的 `intent_regex`，删除噪声关键词。hook 仍要求*意图关键词*或*`docs/`/`design/`/`{vault}/raw/sources/` 文件读取*二者之一，因此缩小关键词范围可将触发限定为"LLM 实际打开了设计文档时"。
+
+**症状: Stop hook 从不触发**
+**原因**: intent regex 太窄，或项目的设计文档存储路径在默认假设的 `docs/` / `design/` / `{vault}/raw/sources/` 之外。
+**修复**: 在脚本顶部附近的 `source_needles` 数组中添加项目的源文档路径，并在 `intent_regex` 中添加领域关键词。
+
+**症状: 想完全禁用 hook**
+**修复**: 重新运行时加 `--no-hooks`（greenfield），或从 `.claude/settings.json` 中删除 `Stop` 和 `UserPromptSubmit` 条目。软规则继续生效。
+
+**症状: Hook 在 Linux/macOS 上不运行**
+**原因**: CLI 安装了 Python hook（Unix 变体），但 Python 3.7+ 不在 PATH 中。
+**修复**: 安装 Python 3（`brew install python` 或发行版包管理器），或如果你使用 PowerShell Core（`pwsh`），将 `.claude/settings.json` 的 `command` 字段改为指向 `.ps1` 文件。
+
+**症状: Hook 在 Windows 上不运行**
+**原因**: PowerShell 执行策略阻止脚本，或 Claude Code 未读取新的 `settings.json`。
+**修复**: 默认命令使用 `-ExecutionPolicy Bypass`，因此策略不应造成阻塞。如果 hook 不触发，重启 Claude Code（settings.json 在会话开始时读取，不是实时刷新）。
 
 ### 9.3 Obsidian 路径不匹配
 **症状**: `obsidian-open` 运行但文件未打开

@@ -11,6 +11,7 @@
 - **Obsidian vault** — Dataview + Marp プラグイン事前インストール済み
 - **Claude Code スキル** — `/ingest`, `/query`, `/lint`, `/obsidian-open` でウィキ操作
 - **ソフトルール** — ターン開始時にウィキコンテキストを自動読み込み、ターン終了時にドメイン知識を自動反映
+- **Hook 安全網** (Stop + UserPromptSubmit) — ソフトルールの判断が漏れた際に LLM へリマインダーを注入。`--no-hooks` でオプトアウト可能
 - **Opus サブエージェント** — 集中的な簿記作業用
 - **ページテンプレートと YAML スキーマ** — entity, concept, source, synthesis 構造定義
 - **ドメインプリセット** — ゲーム、SaaS、研究、小説、または汎用プロジェクト
@@ -77,6 +78,12 @@ my-wiki/
 │   │   ├── wiki-conventions.md    # YAML + ページテンプレート
 │   │   ├── wiki-auto-load.md      # ターン開始読み込みルール
 │   │   └── wiki-auto-reflect.md   # ターン終了書き込みルール
+│   ├── hooks/                     # 安全網 hook（--no-hooks で省略）
+│   │   ├── wiki-reflect-check.ps1 # Stop hook（Windows）
+│   │   ├── wiki-reflect-check.py  # Stop hook（Unix）
+│   │   ├── wiki-load-check.ps1    # UserPromptSubmit hook（Windows）
+│   │   └── wiki-load-check.py     # UserPromptSubmit hook（Unix）
+│   ├── settings.json              # Claude Code に hook を登録
 │   ├── agents/
 │   │   └── wiki-maintainer.md     # opus サブエージェント
 │   └── skills/
@@ -105,7 +112,24 @@ my-wiki/
 └──────────────────────────────────────────────────────────────┘
 ```
 
-両方のルールは**ソフトルール** — LLM はフックではなく命令によって従います。純粋なコード編集、ビルド/ツール変更、ウィキ自体に関するメタ質問はスキップします。
+両方のルールは**ソフトルール** — LLM は命令によって従い、強制メカニズムはありません。純粋なコード編集、ビルド/ツール変更、ウィキ自体に関するメタ質問はスキップします。
+
+## Hook（安全網）
+
+デフォルトで CLI は `.claude/hooks/` に 2 つの Claude Code hook をインストールし、`.claude/settings.json` に登録します:
+
+| Hook | イベント | 動作 |
+| --- | --- | --- |
+| `wiki-load-check` | `UserPromptSubmit` | ユーザーのメッセージにドメイン意図キーワードが含まれる場合、*同じターン*のコンテキストに `wiki-auto-load.md` を指す 1 行のリマインダーを注入する。 |
+| `wiki-reflect-check` | `Stop` | ターン終了時にトランスクリプトをスキャンし、ソース文書の読み取り/編集または意図キーワードのシグナルがあるのにウィキへの書き込みがなければ、停止をブロックしてリマインダーを注入し、アシスタントが `wiki-auto-reflect.md` をもう一度適用する機会を与える。 |
+
+Hook は**強制せず、nudge（促し）のみを行います**。ルールファイルを指すリマインダーを注入するだけで、実際に何をロード/ファイルするかはアシスタントがソフトルールの判断基準に従って決定します。エラー時は fail open（サイレント exit 0）— hook のバグが作業をブロックすることは絶対にありません。Stop hook はループ防止のため `stop_hook_active` をチェックします。
+
+意図キーワードは選択した `--domain` プリセット（game / saas / research / novel / generic）と CLI `--lang` から自動生成されます。インストール後にカスタマイズするには、4 つの hook スクリプト上部付近の `intent_regex` を直接編集してください。
+
+完全にオプトアウトするには `--no-hooks` で実行 — ソフトルールはそのまま適用され、安全網のみ失われます。
+
+**クロスプラットフォーム**: Windows プロジェクトは PowerShell hook（追加依存なし）。Unix プロジェクトは Python 3 hook（hook 実行時に Python 3.7+ が必要、インストール時は不要）。両ペアとも `.claude/hooks/` に同梱されているため、後から `.claude/settings.json` の `command` フィールドを編集して切り替えられます。
 
 ## コマンド
 
@@ -133,6 +157,7 @@ npx create-llm-wiki [project-name] [options]
   --skip-obsidian-check   Obsidian インストール確認をスキップ
   --install-obsidian      Obsidian が見つからない場合 winget/brew で自動インストール
   --skip-plugins          Dataview/Marp プラグインをダウンロードしない
+  --no-hooks              Stop / UserPromptSubmit hook をインストールしない
   --lang <en|ko|zh-CN|ja> CLI 出力言語
   -y, --yes               すべてのプロンプトをスキップしてデフォルト値を使用
   -h, --help              ヘルプを表示
@@ -148,6 +173,8 @@ npx create-llm-wiki [project-name] [options]
 | Obsidian | 使用時必須 (CLI がインストール可能) |
 | Claude Code | 使用時必須 — このツールは Claude Code のためにスキャフォールド |
 | npm | はい — `npx create-llm-wiki` の実行用 |
+| PowerShell 5.1+ | Windows かつ hook 有効時のみ必要（プリインストール済み） |
+| Python 3.7+ | macOS/Linux かつ hook 有効時のみ必要 — `brew install python` またはパッケージマネージャでインストール。インストールできない場合は `--no-hooks` を使用。 |
 
 ## 完全セットアップガイド
 

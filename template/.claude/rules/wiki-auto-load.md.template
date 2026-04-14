@@ -7,6 +7,9 @@ description: Turn-start soft rule. Before any substantive task, read relevant wi
 
 The companion to `wiki-auto-reflect.md`. Reflect writes *to* the wiki at turn-end; this loads *from* the wiki at turn-start. Together they make the wiki part of the assistant's active context on every substantive task.
 
+## Hook companion (optional)
+If `.claude/hooks/wiki-load-check.{ps1,py}` is installed (default for `create-llm-wiki` projects), it acts as a **prompt-time signal**: when the user submits a message, the UserPromptSubmit hook checks for domain intent keywords and, on match, injects a one-line reminder into the same turn's context — pointing this rule at `{{VAULT_DIR}}/wiki/index.md` and the targeted-page workflow below. The hook only nudges; the *what to actually load* judgment below stays authoritative. If the hook is disabled (`--no-hooks` at install or removed from `.claude/settings.json`), this rule still applies; you simply lose the prompt-time signal.
+
 ## When to trigger
 At the start of any task that could benefit from prior domain knowledge. Trigger if ANY of:
 - User asks a domain question about an entity, concept, or decision

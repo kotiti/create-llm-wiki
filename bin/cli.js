@@ -16,6 +16,7 @@ const { values, positionals } = parseArgs({
     'skip-obsidian-check': { type: 'boolean', default: false },
     'install-obsidian': { type: 'boolean', default: false },
     'skip-plugins': { type: 'boolean', default: false },
+    'no-hooks': { type: 'boolean', default: false },
     lang: { type: 'string' },
     yes: { type: 'boolean', short: 'y', default: false },
     help: { type: 'boolean', short: 'h', default: false },

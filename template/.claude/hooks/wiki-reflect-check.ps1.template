@@ -1,0 +1,118 @@
+# Stop hook companion to wiki-auto-reflect.md (Windows / PowerShell).
+# Reads the transcript JSONL, decides whether this turn touched domain content
+# without filing anything to {{VAULT_DIR}}/wiki/, and if so blocks the stop with
+# a reminder so the assistant gets one more pass to judge & file.
+#
+# Soft-rule philosophy preserved: the hook NUDGES, it does not enforce.
+# The assistant still applies wiki-auto-reflect.md judgment in the next pass.
+# Fail-open on any error — never block the stop on script bugs.
+
+$ErrorActionPreference = 'Stop'
+# Force UTF-8 for both stdin and stdout so transcript JSON with CJK characters
+# decodes correctly and the Stop-hook reason JSON isn't mangled by the cp949 /
+# Windows-1252 console codepage PowerShell inherits by default.
+[Console]::InputEncoding  = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+try {
+    $raw = [Console]::In.ReadToEnd()
+    if (-not $raw) { exit 0 }
+    $hook = $raw | ConvertFrom-Json
+
+    # Loop guard — already in a stop-hook-induced retry, let it through.
+    if ($hook.stop_hook_active) { exit 0 }
+
+    $transcript = $hook.transcript_path
+    if (-not $transcript -or -not (Test-Path $transcript)) { exit 0 }
+
+    $lines = Get-Content -Path $transcript -Encoding UTF8
+    if (-not $lines) { exit 0 }
+    if ($lines -isnot [array]) { $lines = @($lines) }
+
+    # --- Find current turn boundary: most recent "real" user message ---
+    $turnStart = 0
+    for ($i = $lines.Count - 1; $i -ge 0; $i--) {
+        try { $e = $lines[$i] | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+        if ($e.type -ne 'user') { continue }
+        $c = $e.message.content
+        $isReal = $false
+        if ($c -is [string] -and $c.Length -gt 0) {
+            $isReal = $true
+        } elseif ($c) {
+            foreach ($block in $c) {
+                if ($block.type -eq 'text' -and $block.text) { $isReal = $true; break }
+            }
+        }
+        if ($isReal) { $turnStart = $i; break }
+    }
+
+    function Test-PathContains([string]$path, [string[]]$needles) {
+        if (-not $path) { return $false }
+        $low = $path.ToLower().Replace('\', '/')
+        foreach ($n in $needles) {
+            if ($low.Contains($n)) { return $true }
+        }
+        return $false
+    }
+
+    $wikiNeedles   = @('{{VAULT_DIR}}/wiki/')
+    $sourceNeedles = @('{{VAULT_DIR}}/raw/sources/', 'docs/', 'design/')
+
+    # --- Intent detection from this turn's user message ---
+    $userText = ''
+    try {
+        $u = $lines[$turnStart] | ConvertFrom-Json
+        $c = $u.message.content
+        if ($c -is [string]) {
+            $userText = $c
+        } else {
+            foreach ($b in $c) {
+                if ($b.type -eq 'text' -and $b.text) { $userText += "$($b.text)`n" }
+            }
+        }
+    } catch {}
+
+    $intentRegex = '{{INTENT_REGEX}}'
+    $userIntent = $false
+    if ($userText -and $intentRegex -and $userText -match $intentRegex) { $userIntent = $true }
+
+    # --- Scan turn for tool uses ---
+    $wroteWiki        = $false
+    $touchedSourceDoc = $false
+
+    for ($i = $turnStart; $i -lt $lines.Count; $i++) {
+        try { $e = $lines[$i] | ConvertFrom-Json -ErrorAction Stop } catch { continue }
+        if ($e.type -ne 'assistant') { continue }
+        $c = $e.message.content
+        if (-not $c -or $c -is [string]) { continue }
+        foreach ($block in $c) {
+            if ($block.type -ne 'tool_use') { continue }
+            $tool = $block.name
+            $inp  = $block.input
+            if ($tool -in @('Edit', 'Write', 'NotebookEdit', 'MultiEdit')) {
+                $p = $inp.file_path
+                if (Test-PathContains $p $wikiNeedles)   { $wroteWiki = $true }
+                if (Test-PathContains $p $sourceNeedles) { $touchedSourceDoc = $true }
+            }
+            if ($tool -eq 'Read') {
+                $p = $inp.file_path
+                if (Test-PathContains $p $sourceNeedles) { $touchedSourceDoc = $true }
+            }
+        }
+    }
+
+    # --- Decide ---
+    if ($wroteWiki) { exit 0 }
+    if (-not ($touchedSourceDoc -or $userIntent)) { exit 0 }
+
+    $reason = "[create-llm-wiki hook] This turn touched domain content (source doc read/edit, or intent keyword in the user prompt). Per .claude/rules/wiki-auto-reflect.md, judge whether new domain knowledge was produced. If yes, file it now (1-3 pages under {{VAULT_DIR}}/wiki/{sources,entities,concepts,synthesis}/), update {{VAULT_DIR}}/wiki/index.md, and append {{VAULT_DIR}}/wiki/log.md. If the work was actually pure code/build/tooling, or the wiki already covers it, say so in one sentence and stop. One pass only — do not loop."
+
+    $out = @{ decision = 'block'; reason = $reason } | ConvertTo-Json -Compress
+    Write-Output $out
+    exit 0
+
+} catch {
+    # Fail open — never block stop on script errors.
+    exit 0
+}

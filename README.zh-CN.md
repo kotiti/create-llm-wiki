@@ -11,6 +11,7 @@
 - **Obsidian vault** — 预装 Dataview + Marp 插件
 - **Claude Code 技能** — `/ingest`, `/query`, `/lint`, `/obsidian-open` 用于 wiki 操作
 - **软规则** — 回合开始时自动加载 wiki 上下文,回合结束时自动反映领域知识
+- **Hook 安全网** (Stop + UserPromptSubmit) — 当 LLM 遗漏软规则判断时注入提醒，可用 `--no-hooks` 退出
 - **Opus 子代理** — 用于集中的簿记工作
 - **页面模板和 YAML 架构** — entity, concept, source, synthesis 结构定义
 - **领域预设** — 游戏、SaaS、研究、小说或通用项目
@@ -77,6 +78,12 @@ my-wiki/
 │   │   ├── wiki-conventions.md    # YAML + 页面模板
 │   │   ├── wiki-auto-load.md      # 回合开始读取规则
 │   │   └── wiki-auto-reflect.md   # 回合结束写入规则
+│   ├── hooks/                     # 安全网 hook（使用 --no-hooks 可省略）
+│   │   ├── wiki-reflect-check.ps1 # Stop hook（Windows）
+│   │   ├── wiki-reflect-check.py  # Stop hook（Unix）
+│   │   ├── wiki-load-check.ps1    # UserPromptSubmit hook（Windows）
+│   │   └── wiki-load-check.py     # UserPromptSubmit hook（Unix）
+│   ├── settings.json              # 向 Claude Code 注册 hook
 │   ├── agents/
 │   │   └── wiki-maintainer.md     # opus 子代理
 │   └── skills/
@@ -105,7 +112,24 @@ my-wiki/
 └──────────────────────────────────────────────────────────────┘
 ```
 
-两个规则都是**软规则** — LLM 通过指令遵循它们,而不是 hook。它们跳过纯代码编辑、构建/工具更改以及关于 wiki 本身的元问题。
+两个规则都是**软规则** — LLM 通过指令遵循它们,没有强制执行机制。它们跳过纯代码编辑、构建/工具更改以及关于 wiki 本身的元问题。
+
+## Hook（安全网）
+
+默认情况下，CLI 会在 `.claude/hooks/` 下安装两个 Claude Code hook，并将它们注册到 `.claude/settings.json`：
+
+| Hook | 事件 | 作用 |
+| --- | --- | --- |
+| `wiki-load-check` | `UserPromptSubmit` | 当用户提交的消息包含领域意图关键词时，在*同一回合*注入一行提醒，将助手指向 `wiki-auto-load.md`。 |
+| `wiki-reflect-check` | `Stop` | 回合结束时扫描对话记录，如果存在源文档读/写或意图关键词的信号但 wiki 没有任何写入，则阻塞停止并注入提醒，给助手一次额外机会执行 `wiki-auto-reflect.md`。 |
+
+Hook **只起提醒作用，不强制执行**。它们注入指向规则文件的提醒；助手仍根据软规则的判断标准决定实际加载或归档什么。任何错误都会 fail open（静默 exit 0），hook 的 bug 绝不会阻断你的工作。Stop hook 会检查 `stop_hook_active` 以避免循环。
+
+意图关键词由所选的 `--domain` 预设（game / saas / research / novel / generic）和 CLI `--lang` 自动生成。安装后如需自定义，编辑四个 hook 脚本顶部附近的 `intent_regex`。
+
+完全退出请使用 `--no-hooks` — 软规则仍然生效，只是失去安全网。
+
+**跨平台**：Windows 项目使用 PowerShell hook（无需额外依赖）。Unix 项目使用 Python 3 hook（hook 执行时需要 Python 3.7+，安装时不需要）。两套都放在 `.claude/hooks/` 中，之后可通过编辑 `.claude/settings.json` 的 `command` 字段切换。
 
 ## 命令
 
@@ -133,6 +157,7 @@ npx create-llm-wiki [project-name] [options]
   --skip-obsidian-check   跳过 Obsidian 安装检查
   --install-obsidian      若未找到 Obsidian 则通过 winget/brew 自动安装
   --skip-plugins          不下载 Dataview/Marp 插件
+  --no-hooks              不安装 Stop / UserPromptSubmit hook
   --lang <en|ko|zh-CN|ja> CLI 输出语言
   -y, --yes               跳过所有提示,使用默认值
   -h, --help              显示帮助
@@ -148,6 +173,8 @@ npx create-llm-wiki [project-name] [options]
 | Obsidian | 使用时必需 (CLI 可以安装它) |
 | Claude Code | 使用时必需 — 此工具是为 Claude Code 搭建脚手架 |
 | npm | 是 — 用于运行 `npx create-llm-wiki` |
+| PowerShell 5.1+ | 仅 Windows 且启用 hook 时需要（已预装） |
+| Python 3.7+ | 仅 macOS/Linux 且启用 hook 时需要 — 通过 `brew install python` 或包管理器安装。如无法安装请使用 `--no-hooks`。 |
 
 ## 完整设置指南
 

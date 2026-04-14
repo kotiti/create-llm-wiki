@@ -11,6 +11,7 @@
 - **Obsidian vault** — Dataview + Marp 플러그인 사전 설치
 - **Claude Code 스킬** — `/ingest`, `/query`, `/lint`, `/obsidian-open` 위키 연산
 - **소프트 룰** — 턴 시작 시 위키 자동 로드, 턴 종료 시 도메인 지식 자동 반영
+- **훅 안전망** (Stop + UserPromptSubmit) — 소프트 룰 판단이 누락될 때 LLM 에 reminder 주입. `--no-hooks` 로 옵트아웃
 - **Opus 서브에이전트** — 집중적인 bookkeeping 작업용
 - **페이지 템플릿과 YAML 스키마** — entity, concept, source, synthesis 구조 정의
 - **도메인 프리셋** — 게임, SaaS, 연구, 소설, 또는 범용 프로젝트
@@ -77,6 +78,12 @@ my-wiki/
 │   │   ├── wiki-conventions.md    # YAML + 페이지 템플릿
 │   │   ├── wiki-auto-load.md      # 턴 시작 읽기 룰
 │   │   └── wiki-auto-reflect.md   # 턴 종료 쓰기 룰
+│   ├── hooks/                     # 안전망 훅 (--no-hooks 시 생략)
+│   │   ├── wiki-reflect-check.ps1 # Stop 훅 (Windows)
+│   │   ├── wiki-reflect-check.py  # Stop 훅 (Unix)
+│   │   ├── wiki-load-check.ps1    # UserPromptSubmit 훅 (Windows)
+│   │   └── wiki-load-check.py     # UserPromptSubmit 훅 (Unix)
+│   ├── settings.json              # Claude Code 에 훅 등록
 │   ├── agents/
 │   │   └── wiki-maintainer.md     # opus 서브에이전트
 │   └── skills/
@@ -105,7 +112,24 @@ my-wiki/
 └──────────────────────────────────────────────────────────────┘
 ```
 
-두 룰 모두 **소프트 룰** — LLM이 hook이 아닌 instruction으로 따릅니다. 순수 코드 편집, 빌드/툴링 변경, 위키 자체에 대한 메타 질문은 스킵합니다.
+두 룰 모두 **소프트 룰** — LLM이 instruction으로 따르며 강제 메커니즘은 없습니다. 순수 코드 편집, 빌드/툴링 변경, 위키 자체에 대한 메타 질문은 스킵합니다.
+
+## 훅 (안전망)
+
+기본적으로 CLI 는 두 개의 Claude Code 훅을 `.claude/hooks/` 에 설치하고 `.claude/settings.json` 에 등록합니다:
+
+| 훅 | 이벤트 | 동작 |
+| --- | --- | --- |
+| `wiki-load-check` | `UserPromptSubmit` | 사용자 메시지에 도메인 의도 키워드가 있으면 *같은 턴* 컨텍스트에 wiki-auto-load.md 를 가리키는 한 줄 reminder 주입 |
+| `wiki-reflect-check` | `Stop` | 턴 종료 시 transcript 를 스캔해 디자인 문서 read/edit 또는 의도 키워드가 있는데 위키에 아무것도 안 썼으면, Stop 을 block + reminder 주입해서 어시스턴트가 한 번 더 wiki-auto-reflect.md 판단 기회를 갖게 함 |
+
+훅은 **강제하지 않고 nudge 만 합니다.** 룰 파일을 가리키는 reminder 를 주입할 뿐, 실제로 무엇을 load/file 할지는 어시스턴트가 룰의 판단 기준대로 결정합니다. 모든 에러에서 fail-open (silent exit 0) — 훅 버그가 작업을 멈추는 일은 절대 없습니다. Stop 훅은 `stop_hook_active` 를 체크해 무한 루프를 방지합니다.
+
+의도 키워드는 `--domain` 프리셋(game / saas / research / novel / generic)과 CLI `--lang` 에서 자동 생성됩니다. 설치 후 커스터마이즈하려면 4개 훅 스크립트 상단의 `intent_regex` 를 직접 수정하세요.
+
+완전히 옵트아웃하려면 `--no-hooks` — 소프트 룰은 그대로 적용되고 안전망만 사라집니다.
+
+**크로스 플랫폼**: Windows 프로젝트는 PowerShell 훅 (추가 의존성 없음). Unix 프로젝트는 Python 3 훅 (실행 시점에 Python 3.7+ 필요, 설치 시점에는 불필요). 두 페어 모두 `.claude/hooks/` 에 들어 있어서 나중에 `.claude/settings.json` 의 `command` 를 편집해서 전환할 수 있습니다.
 
 ## 명령어
 
@@ -133,6 +157,7 @@ npx create-llm-wiki [project-name] [options]
   --skip-obsidian-check   Obsidian 설치 확인 건너뛰기
   --install-obsidian      Obsidian 없으면 winget/brew로 자동 설치
   --skip-plugins          Dataview/Marp 플러그인 다운로드 안 함
+  --no-hooks              Stop / UserPromptSubmit 훅 설치 안 함
   --lang <en|ko|zh-CN|ja> CLI 출력 언어
   -y, --yes               모든 프롬프트 건너뛰고 기본값 사용
   -h, --help              도움말
@@ -148,6 +173,8 @@ npx create-llm-wiki [project-name] [options]
 | Obsidian | 사용 시점 필수 (CLI가 설치 도와줌) |
 | Claude Code | 사용 시점 필수 — 이 도구가 Claude Code용 스캐폴드 |
 | npm | 필수 — `npx create-llm-wiki` 실행용 |
+| PowerShell 5.1+ | Windows + 훅 사용 시에만 필요 (사전 설치되어 있음) |
+| Python 3.7+ | macOS/Linux + 훅 사용 시에만 필요 — `brew install python` 또는 패키지 매니저로 설치. 설치할 수 없으면 `--no-hooks` 사용 |
 
 ## 전체 셋업 가이드
 

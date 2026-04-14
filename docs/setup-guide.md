@@ -383,7 +383,29 @@ Start a new conversation:
 ### 9.2 auto-reflect too eager / too lazy
 **Symptom**: Design discussions not recorded / every code change creates wiki files
 **Cause**: Trigger conditions and SKIP list don't match project
-**Fix**: Customize SKIP list per project. Game: always reflect balance decisions. SaaS: always reflect billing decisions.
+**Fix**: Customize SKIP list per project. Game: always reflect balance decisions. SaaS: always reflect billing decisions. If reflect *never* fires even when it should, the soft rule is being missed by the LLM — enable the Stop hook safety net (see §9.2a).
+
+### 9.2a Hooks (safety net) — too quiet or too loud
+**Default**: The CLI installs two Claude Code hooks under `.claude/hooks/` that nudge the LLM when soft-rule judgment is missed. See the README "Hooks (safety net)" section for the full table. Trigger keywords come from the `--domain` preset and your CLI `--lang`.
+
+**Symptom: Stop hook fires on every turn (false positives)**
+**Cause**: Intent regex too broad, or your project legitimately discusses domain content all the time.
+**Fix**: Edit `intent_regex` near the top of `.claude/hooks/wiki-reflect-check.{ps1,py}` to remove noisy keywords. The hook still requires *either* an intent keyword *or* a `docs/`/`design/`/`{vault}/raw/sources/` file read — so removing keywords narrows it to "only when the LLM actually opened a design doc."
+
+**Symptom: Stop hook never fires**
+**Cause**: Intent regex too narrow, or your project lives outside the assumed `docs/` / `design/` / `{vault}/raw/sources/` paths.
+**Fix**: Add your project's source-doc paths to the `source_needles` array near the top of the script, and add domain keywords to `intent_regex`.
+
+**Symptom: Want to disable hooks entirely**
+**Fix**: Either re-run with `--no-hooks` (greenfield), or remove the `Stop` and `UserPromptSubmit` entries from `.claude/settings.json`. Soft rules continue to apply.
+
+**Symptom: Hooks don't run on Linux/macOS**
+**Cause**: The CLI installed Python hooks (the Unix variant) but Python 3.7+ isn't on PATH.
+**Fix**: Install Python 3 (`brew install python` or your distro's package), or switch the `command` field in `.claude/settings.json` to point at the `.ps1` files if you're on PowerShell Core (`pwsh`).
+
+**Symptom: Hooks don't run on Windows**
+**Cause**: PowerShell execution policy blocking the script, or Claude Code not picking up the new `settings.json`.
+**Fix**: The default command uses `-ExecutionPolicy Bypass` so policy shouldn't block. If hooks aren't firing, restart Claude Code (settings.json is read at session start, not live).
 
 ### 9.3 Obsidian path mismatch
 **Symptom**: `obsidian-open` runs but file doesn't open

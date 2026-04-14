@@ -5,7 +5,10 @@ description: End-of-turn soft rule. After substantive work that produced domain 
 
 # Wiki auto-reflection
 
-This is a **soft rule** the assistant follows at the end of each turn. It runs only **after** substantive work is complete — never mid-task. No hooks, no interruptions, just end-of-turn judgment.
+This is a **soft rule** the assistant follows at the end of each turn. It runs only **after** substantive work is complete — never mid-task. End-of-turn judgment is the source of truth. A Stop hook (see below) may nudge but does not enforce.
+
+## Hook companion (optional)
+If `.claude/hooks/wiki-reflect-check.{ps1,py}` is installed (default for `create-llm-wiki` projects), it acts as a **safety net**: at turn end it scans for source-doc reads/edits and intent keywords, and if it sees signal without a corresponding `{{VAULT_DIR}}/wiki/` write, it injects a one-shot reminder (via Stop hook `decision: block`) so the assistant gets one more pass to apply this rule. The hook only nudges — it never decides what to file. The judgment below remains authoritative. If the hook is disabled (`--no-hooks` at install or removed from `.claude/settings.json`), this rule still applies the same way; you simply lose the safety net.
 
 ## When to trigger
 At turn end, reflect on the work and trigger if ANY of these happened in the turn:

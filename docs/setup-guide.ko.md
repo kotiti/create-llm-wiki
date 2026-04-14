@@ -482,7 +482,29 @@ test -f .claude/rules/wiki-auto-reflect.md && echo "OK: auto-reflect"
 ### 10.2 auto-reflect가 안 됨 / 과도함
 **증상**: 설계 논의했는데 기록 안 됨 / 코드 변경마다 위키 파일 생성됨
 **원인**: `wiki-auto-reflect.md`의 트리거 조건·SKIP 리스트가 프로젝트에 안 맞음
-**해결**: SKIP 리스트에 프로젝트 특유 작업 명시 (ProjectMMO는 권위 카테고리 결정은 항상 트리거, virgame은 GameData 테이블 작업은 항상 스킵)
+**해결**: SKIP 리스트에 프로젝트 특유 작업 명시. *Reflect 가 거의 절대 안 발화한다면* — 소프트 룰이 LLM 의 판단에서 누락되는 것이므로, 안전망 훅을 활성화하세요 (§10.2a 참고).
+
+### 10.2a 훅 (안전망) — 너무 조용하거나 너무 시끄러움
+**기본 동작**: CLI 가 `.claude/hooks/` 에 두 개의 Claude Code 훅을 설치해서 소프트 룰 판단이 누락될 때 LLM 에 reminder 를 주입합니다. 전체 표는 README 의 "훅 (안전망)" 섹션 참고. 트리거 키워드는 `--domain` 프리셋 + CLI `--lang` 에서 자동 생성.
+
+**증상: Stop 훅이 매 턴 발화 (false positive)**
+**원인**: intent regex 가 너무 광범위하거나, 프로젝트 자체가 도메인 콘텐츠를 항상 다룸
+**해결**: `.claude/hooks/wiki-reflect-check.{ps1,py}` 상단의 `intent_regex` 에서 노이즈 키워드 제거. 훅은 *의도 키워드* 또는 *`docs/`/`design/`/`{vault}/raw/sources/` 파일 read* 둘 중 하나라도 있어야 발화하므로, 키워드 좁히면 "디자인 문서를 실제로 열었을 때만" 으로 한정됩니다.
+
+**증상: Stop 훅이 절대 발화 안 함**
+**원인**: intent regex 가 너무 좁거나, 프로젝트가 기본 가정한 `docs/` / `design/` / `{vault}/raw/sources/` 외 경로에 디자인 문서 보관
+**해결**: 스크립트 상단의 `source_needles` 배열에 프로젝트 디자인 문서 경로 추가하고, `intent_regex` 에 도메인 키워드 추가
+
+**증상: 훅을 완전히 끄고 싶음**
+**해결**: greenfield 라면 `--no-hooks` 로 재실행, 또는 `.claude/settings.json` 에서 `Stop`/`UserPromptSubmit` 항목 제거. 소프트 룰은 그대로 적용됨
+
+**증상: Linux/macOS 에서 훅이 안 돌아감**
+**원인**: CLI 가 Python 훅 (Unix 변형) 을 설치했는데 Python 3.7+ 가 PATH 에 없음
+**해결**: Python 3 설치 (`brew install python` 또는 배포판 패키지) — 또는 PowerShell Core (`pwsh`) 사용자라면 `.claude/settings.json` 의 `command` 를 `.ps1` 로 변경
+
+**증상: Windows 에서 훅이 안 돌아감**
+**원인**: PowerShell execution policy 가 막거나, Claude Code 가 새 `settings.json` 을 못 읽음
+**해결**: 기본 command 가 `-ExecutionPolicy Bypass` 라 policy 는 문제 없음. 안 돌아가면 Claude Code 재시작 (settings.json 은 세션 시작 시점에 읽음, 라이브 반영 안 됨)
 
 ### 10.3 Obsidian 경로 불일치
 **증상**: `obsidian-open` 스킬이 실행돼도 파일이 안 열림

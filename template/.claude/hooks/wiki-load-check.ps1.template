@@ -1,0 +1,36 @@
+# UserPromptSubmit hook companion to wiki-auto-load.md (Windows / PowerShell).
+# Reads the user's submitted prompt from stdin JSON. If it matches the domain
+# intent regex, prints a reminder to stdout — Claude Code injects stdout from
+# UserPromptSubmit hooks into the assistant's context for THIS turn.
+#
+# Soft-rule philosophy preserved: the hook NUDGES, it does not enforce.
+# The assistant still applies wiki-auto-load.md judgment for what to actually load.
+# Fail-open on any error — silent exit 0.
+
+$ErrorActionPreference = 'Stop'
+# Force UTF-8 for both stdin and stdout so JSON containing CJK characters
+# decodes correctly and the injected reminder text isn't mangled by the
+# cp949 / Windows-1252 console codepage PowerShell inherits by default.
+[Console]::InputEncoding  = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
+try {
+    $raw = [Console]::In.ReadToEnd()
+    if (-not $raw) { exit 0 }
+    $hook = $raw | ConvertFrom-Json
+
+    $prompt = $hook.prompt
+    if (-not $prompt) { exit 0 }
+
+    $intentRegex = '{{INTENT_REGEX}}'
+    if (-not $intentRegex) { exit 0 }
+
+    if ($prompt -match $intentRegex) {
+        Write-Output "[create-llm-wiki hook] Domain intent detected in this prompt. Per .claude/rules/wiki-auto-load.md, before answering: silently read {{VAULT_DIR}}/wiki/index.md first, then 2-5 targeted pages from entities/, concepts/, sources/, or synthesis/, and cite [[page]] references when you reason from them. Skip the load if the prompt is actually about code mechanics, build/CI, framework APIs, or other non-domain work. Do not announce the load itself — only mention wiki content when you cite it."
+    }
+    exit 0
+
+} catch {
+    exit 0
+}

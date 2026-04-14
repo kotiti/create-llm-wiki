@@ -1,6 +1,6 @@
 {
   "name": "create-llm-wiki",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Scaffold an LLM-maintained Obsidian wiki into any project — Karpathy's LLM Wiki pattern + Claude Code integration.",
   "type": "module",
   "bin": {

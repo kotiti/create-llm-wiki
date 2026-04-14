@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""UserPromptSubmit hook companion to wiki-auto-load.md (Unix / Python 3).
+
+Reads the user's submitted prompt from stdin JSON. If it matches the domain
+intent regex, prints a reminder to stdout — Claude Code injects stdout from
+UserPromptSubmit hooks into the assistant's context for THIS turn.
+
+Soft-rule philosophy preserved: the hook NUDGES, it does not enforce.
+The assistant still applies wiki-auto-load.md judgment for what to actually load.
+Fail-open on any error — silent exit 0.
+"""
+import json
+import re
+import sys
+
+# Force UTF-8 on stdin/stdout. On Windows, Python defaults sys.stdout to the
+# system codepage (cp949 / Windows-1252), which can't encode the em dash and
+# CJK characters in our reminder text or in the user's prompt JSON.
+try:
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+
+def main() -> int:
+    try:
+        raw = sys.stdin.read()
+        if not raw:
+            return 0
+        hook = json.loads(raw)
+    except Exception:
+        return 0
+
+    prompt = hook.get("prompt") or ""
+    if not prompt:
+        return 0
+
+    intent_regex = r"{{INTENT_REGEX}}"
+    if not intent_regex:
+        return 0
+
+    try:
+        if re.search(intent_regex, prompt, re.IGNORECASE):
+            sys.stdout.write(
+                "[create-llm-wiki hook] Domain intent detected in this prompt. "
+                "Per .claude/rules/wiki-auto-load.md, before answering: silently "
+                "read {{VAULT_DIR}}/wiki/index.md first, then 2-5 targeted pages "
+                "from entities/, concepts/, sources/, or synthesis/, and cite "
+                "[[page]] references when you reason from them. Skip the load if "
+                "the prompt is actually about code mechanics, build/CI, framework "
+                "APIs, or other non-domain work. Do not announce the load itself "
+                "— only mention wiki content when you cite it."
+            )
+    except re.error:
+        pass
+
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except Exception:
+        sys.exit(0)
